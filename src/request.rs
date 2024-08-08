@@ -3,21 +3,7 @@ use crate::error::EResult;
 use crate::model::HentaiStore;
 use log;
 use reqwest::Client;
-use std::{error::Error, fmt, fs::File, io::Write};
-
-#[derive(Debug)]
-pub struct RequestError {
-    message: String,
-    code: u16,
-}
-
-impl fmt::Display for RequestError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Request failed: {}", self.message)
-    }
-}
-
-impl Error for RequestError {}
+use std::{fs::File, io::Write};
 
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3";
 
@@ -69,7 +55,14 @@ pub async fn download_image(hentai_store: HentaiStore, max_count: u8) -> EResult
             // 获取响应体
             let bytes = response.bytes().await?;
             // 打开文件准备写入
-            let mut file = File::create(hentai_store.path.clone())?;
+            let mut file = match File::create(hentai_store.path.clone()) {
+                Ok(file) => file,
+                Err(_) => {
+                    log::warn!("文件已存在");
+                    // 返回已存在的文件
+                    File::open(hentai_store.path.clone()).unwrap()
+                },
+            };
             // 将图片数据写入文件
             file.write_all(&bytes)?;
             return Ok(());

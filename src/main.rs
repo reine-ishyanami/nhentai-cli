@@ -27,9 +27,7 @@ async fn main() {
         Ok(config) => config,
         Err(e) => panic!("程序启动异常 {}", e),
     };
-    if let Err(e) = args.cmd.run(config, CONFIG_FILE_PATH).await {
-        panic!("程序发生异常, {}", e);
-    }
+    args.cmd.run(config, CONFIG_FILE_PATH).await
 }
 
 /// 读取配置文件

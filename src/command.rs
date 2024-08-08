@@ -1,13 +1,10 @@
 use std::fs;
 use std::path::PathBuf;
 use std::{error::Error, fs::File, io::Write};
-use tokio::{runtime::Runtime, spawn};
 use tokio::task::JoinSet;
-
 
 use clap::{Parser, Subcommand};
 
-use crate::error::EResult;
 use crate::config::Config;
 use crate::model::{HentaiDetail, HentaiStore};
 use crate::parse::{get_hentai_detail, get_hentai_list};
@@ -51,19 +48,27 @@ pub enum Commands {
 }
 
 impl Commands {
-    pub async fn run(&self, config: Config, file: &str) -> Result<(), Box<dyn Error>> {
+    pub async fn run(&self, config: Config, file: &str) {
         match self {
-            Commands::Generate => {
-                let config_str = serde_yaml::to_string(&config).unwrap();
-                let mut file = File::create(file).unwrap();
-                file.write_all(config_str.as_bytes()).unwrap();
-                Ok(())
-            }
-            Commands::Download { name } => Ok(download(name, config).await),
-            Commands::Convert { path, name } => Ok(convert(path, name, config).await),
-            Commands::Compress { path, name } => Ok(compress(path, name, config).await),
+            Commands::Generate => generate(config, file),
+            Commands::Download { name } => download(name, config).await,
+            Commands::Convert { path, name } => convert(path, name, config).await,
+            Commands::Compress { path, name } => compress(path, name, config).await,
         }
     }
+}
+
+/// 生成默认配置文件
+///
+/// # Arguments
+///
+/// * `config` - 配置文件
+/// * `file` - 配置文件路径
+fn generate(config: Config, file: &str) {
+    let config_str = serde_yaml::to_string(&config).unwrap();
+    let mut file = File::create(file).unwrap();
+    file.write_all(config_str.as_bytes()).unwrap();
+    log::info!("generate config file success");
 }
 
 ///
@@ -110,9 +115,11 @@ async fn download(name: &String, config: Config) {
         let mut path = PathBuf::new();
         path.push(config.root_dir.as_str());
         path.push(name);
+        // 创建目录
         if let Err(e) = fs::create_dir_all(path) {
             log::warn!("create dir failed: {}", e);
         }
+        // 并发任务集合
         let mut set = JoinSet::new();
         for ele in hentai_detail.res_list {
             let mut path = PathBuf::new();
@@ -124,8 +131,8 @@ async fn download(name: &String, config: Config) {
                 path: path,
             };
             set.spawn(download_image(hentai_store, config.retry_count));
-            
         }
+        // 当任务全部执行完毕
         while let Some(_) = set.join_next().await {}
         log::info!("download finished");
     } else {

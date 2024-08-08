@@ -19,11 +19,8 @@ pub async fn get_hentai_list(html: &str) -> Vec<HentaiHref> {
     let a_tag = Selector::parse("a").unwrap(); // 选择所有的 a 标签
     let caption_class = Selector::parse(".caption").unwrap(); // 选择所有的 caption 类
     let mut hentai_list = vec![];
-    log::debug!("query {:?} class", gallery_class);
     for element in fragment.select(&gallery_class) {
-        log::debug!("query {:?} tag", a_tag);
         let href = element.select(&a_tag).next().unwrap().value().attr("href").unwrap();
-        log::debug!("query {:?} class", caption_class);
         let title = element.select(&caption_class).next().unwrap().inner_html();
         let hentai_href = HentaiHref {
             href: format!("https://nhentai.net{}", href),
