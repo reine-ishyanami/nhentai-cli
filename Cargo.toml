@@ -1,0 +1,26 @@
+[package]
+name = "nhentai-rs"
+version = "0.1.0"
+edition = "2021"
+description = "download hentai images from nhentai.net"
+license = "AGPL"
+
+
+[dependencies]
+chrono = "0.4.38"  # 时间处理
+clap = { version = "4.5.13", features = ["derive"] }  # 命令行参数解析
+env_logger = "0.11.5"  # 日志
+log = "0.4.22"  # 日志门面
+printpdf = "0.7.0"  # pdf 文件操作
+reqwest = "0.12.5"  # 网络请求
+scraper = "0.20.0"  # 网页解析
+tokio = { version = "1.39.2", features = ["full"] }  # 异步运行时
+tokio-macros = "2.4.0"
+serde = { version = "1.0", features = ["derive"] }  # 序列化
+serde_yaml = "0.9.34"  # yaml 格式文件序列化
+zip = "2.1.6"  # zip 文件操作
+thiserror = "1.0.63"  # 错误处理
+
+
+[rustfmt]
+path = ".rustfmt.toml" # 指定配置文件的路径
