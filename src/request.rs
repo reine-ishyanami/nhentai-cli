@@ -45,7 +45,8 @@ pub async fn navigate(url: &str) -> EResult<String> {
 /// * `hentaiStore` - HentaiStore 实例
 /// * `retryCount` - 重试次数
 ///
-pub async fn download_image(hentai_store: HentaiStore, max_count: u8) -> EResult<()> {
+pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: bool) -> EResult<()> {
+    log::debug!("Downloading image from {}", hentai_store.url);
     let mut retry_count = 0u8;
     while retry_count < max_count {
         // 发送GET请求获取图片
@@ -54,24 +55,29 @@ pub async fn download_image(hentai_store: HentaiStore, max_count: u8) -> EResult
         if response.status().is_success() {
             // 获取响应体
             let bytes = response.bytes().await?;
+            // 判断文件是否存在
+            if hentai_store.path.exists() {
+                log::warn!("文件已存在");
+                // 如果不允许替换已有文件
+                if !replace {
+                    return Err(CustomError::FileError {
+                        message: format!("{:?} 文件已存在", hentai_store.path.file_name()),
+                    });
+                }
+            }
             // 打开文件准备写入
-            let mut file = match File::create(hentai_store.path.clone()) {
-                Ok(file) => file,
-                Err(_) => {
-                    log::warn!("文件已存在");
-                    // 返回已存在的文件
-                    File::open(hentai_store.path.clone()).unwrap()
-                },
-            };
-            // 将图片数据写入文件
-            file.write_all(&bytes)?;
+            if let Ok(mut file) = File::create(hentai_store.path.clone()) {
+                // 将图片数据写入文件
+                file.write_all(&bytes)?;
+            }
             return Ok(());
         } else {
             retry_count += 1;
+            log::debug!("Retrying download image from {}", hentai_store.url);
         }
     }
     Err(CustomError::RequestError {
-        message: "Download failed".to_owned(),
+        message: "Too many retries".to_owned(),
         code: 400u16,
     })
 }

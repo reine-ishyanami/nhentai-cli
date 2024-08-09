@@ -8,7 +8,7 @@ mod error;
 use std::{
     fs::File,
     io::{Read, Write},
-    path::Path,
+    path::Path, thread,
 };
 
 use crate::command::Args;
@@ -53,13 +53,15 @@ fn load_config(file_name: &str) -> EResult<Config> {
         file.read_to_string(&mut contents)?;
         config = serde_yaml::from_str(&contents)?;
         Builder::new()
-            .parse_filters(config.log.level.as_str())
+            .parse_filters(config.log.level.to_string().as_str())
             .format(|buf, record| {
                 writeln!(
                     buf,
-                    "{} [{}] - {}",
+                    "{} [{:5}] [{:20}] [{:20}] {}",
                     Local::now().format("%Y-%m-%dT%H:%M:%S"),
                     record.level(),
+                    record.target(),
+                    thread::current().name().unwrap_or("unknown"),
                     record.args()
                 )
             })

@@ -5,6 +5,9 @@ pub enum CustomError {
     #[error("request error: {message}")]
     RequestError { message: String, code: u16 },
 
+    #[error("file system error: {message}")]
+    FileError { message: String },
+
     #[error("I/O error: {0}")]
     IOError(#[from] std::io::Error),
 

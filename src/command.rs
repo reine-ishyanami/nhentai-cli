@@ -130,7 +130,7 @@ async fn download(name: &String, config: Config) {
                 url: format!("{}/{}/{}", base_url, &hentai_detail.gallery, ele),
                 path: path,
             };
-            set.spawn(download_image(hentai_store, config.retry_count));
+            set.spawn(download_image(hentai_store, config.retry_count, config.replace));
         }
         // 当任务全部执行完毕
         while let Some(_) = set.join_next().await {}
