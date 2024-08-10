@@ -1,5 +1,4 @@
-use crate::model::{HentaiDetail, HentaiHref};
-use log;
+use crate::dep::model::{HentaiDetail, HentaiHref};
 use scraper::{selectable::Selectable, Html, Selector};
 
 ///
@@ -59,7 +58,6 @@ pub async fn get_hentai_detail(html: &str) -> HentaiDetail {
     let container_class = Selector::parse(".thumb-container").unwrap();
     let img_tag = Selector::parse("img").unwrap();
     let mut res_list: Vec<String> = Vec::new();
-    log::debug!("collect images url");
     for element in fragment.select(&container_id).next().unwrap().select(&container_class) {
         let src_url = element
             .select(&img_tag)
