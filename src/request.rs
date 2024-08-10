@@ -42,9 +42,9 @@ pub async fn navigate(url: &str) -> EResult<String> {
 ///
 /// # Arguments
 ///
-/// * `hentaiStore` - HentaiStore 实例
-/// * `retryCount` - 重试次数
-///
+/// * `hentai_store` - HentaiStore 实例
+/// * `max_count` - 最大重试次数
+/// * `replace` - 是否替换已有文件
 pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: bool) -> EResult<()> {
     log::debug!("Downloading image from {}", hentai_store.url);
     let mut retry_count = 0u8;

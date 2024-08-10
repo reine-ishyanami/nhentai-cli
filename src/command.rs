@@ -113,7 +113,7 @@ fn generate(config: Config, file: &str) {
 ///
 /// * `Box<dyn Error>` - 搜索失败
 ///
-async fn search(name: &String, language: &Language) -> EResult<HentaiDetail> {
+async fn search(name: &str, language: &Language) -> EResult<HentaiDetail> {
     let base_url = format!("https://nhentai.net/search/?q={}", name);
     // 第一次请求，获取 hentai 列表
     let html = navigate(base_url.as_str()).await.unwrap();
@@ -128,7 +128,9 @@ async fn search(name: &String, language: &Language) -> EResult<HentaiDetail> {
         Ok(get_hentai_detail(html.as_str()).await)
     } else {
         log::error!("not found");
-        Err(CustomError::NotFoundError { language: language.to_string() })
+        Err(CustomError::NotFoundError {
+            language: language.to_string(),
+        })
     }
 }
 
@@ -138,7 +140,7 @@ async fn search(name: &String, language: &Language) -> EResult<HentaiDetail> {
 ///
 /// * `name` - hentai 名称
 /// * `config` - 配置文件
-async fn download(name: &String, config: Config) {
+async fn download(name: &str, config: Config) {
     let base_url = "https://i3.nhentai.net/galleries";
     if let Ok(hentai_detail) = search(name, &config.language).await {
         let path = format!("{}/{}", config.root_dir, name);
@@ -163,10 +165,10 @@ async fn download(name: &String, config: Config) {
         log::error!("search nothing of {}", config.language.to_string());
     }
     if config.compress.enable {
-        compress(&name, &name, &None, &None, config.compress);
+        compress(name, name, &None, &None, config.compress);
     }
     if config.pdf.enable {
-        convert(&name, &name, &None, config.pdf);
+        convert(name, name, &None, config.pdf);
     }
 }
 
@@ -178,7 +180,7 @@ async fn download(name: &String, config: Config) {
 /// * `name` - hentai pdf 名称
 /// * `dir` - pdf 存储路径
 /// * `pdf_config` - pdf 配置
-fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) {
+fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: Pdf) {
     let pdf_dir = match dir {
         Some(dir) => dir.clone(),
         None => pdf_config.dir,
@@ -278,14 +280,20 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
                     match dynamic.color() {
                         ColorType::L8 => handle_png_l8(),
                         ColorType::Rgb8 => (Filter::DctDecode, data, None),
-                        _ => panic!("unsupported color type: {:?}", dynamic.color()),
+                        _ => {
+                            log::error!("unsupported color type: {:?}", dynamic.color());
+                            continue;
+                        },
                     }
                 }
                 ImageFormat::Png => {
                     log::debug!("image {} format: png , color {:?}", path.display(), dynamic.color());
                     handle_png_l8()
                 }
-                _ => panic!("unsupported image format"),
+                _ => {
+                    log::error!("unsupported image format");
+                    continue;
+                }
             };
 
             // 页面大小
@@ -343,7 +351,7 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
     // 保存PDF文件
     match std::fs::write(format!("{}/{}.pdf", pdf_dir, name), pdf.finish()) {
         Ok(_) => log::info!("save pdf {:?}", name),
-        Err(e) => panic!("{:?}", e),
+        Err(e) => log::error!("{:?}", e),
     }
 }
 
@@ -356,7 +364,7 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
 /// * `secret` - zip 密码
 /// * `dir` - zip 存储路径
 /// * `compress_config` - 打包配置
-fn compress(path: &String, name: &String, secret: &Option<String>, dir: &Option<String>, compress_config: Compress) {
+fn compress(path: &str, name: &str, secret: &Option<String>, dir: &Option<String>, compress_config: Compress) {
     let password = match secret {
         Some(secret) => secret.clone(),
         None => compress_config.password,
@@ -375,7 +383,7 @@ fn compress(path: &String, name: &String, secret: &Option<String>, dir: &Option<
     log::debug!("compress {:?} to {:?}", src_dir.display(), dst_file.display());
     match doit(&src_dir, &dst_file, method, password) {
         Ok(_) => log::info!("done: {:?} written to {:?}", path, dst_file),
-        Err(e) => log::error!("Error: {e:?}"),
+        Err(e) => log::error!("Error: {:?}", e),
     }
 }
 

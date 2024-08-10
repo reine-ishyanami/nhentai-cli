@@ -26,7 +26,7 @@ async fn main() {
     let args = Args::parse();
     let config: Config = match load_config(CONFIG_FILE_PATH) {
         Ok(config) => config,
-        Err(e) => panic!("程序启动异常 {}", e),
+        Err(e) => panic!("配置文件格式异常: {}", e),
     };
     args.cmd.run(config, CONFIG_FILE_PATH).await
 }
