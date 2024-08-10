@@ -16,6 +16,9 @@ pub enum CustomError {
 
     #[error("serde error: {0}")]
     SerdeError(#[from] serde_yaml::Error),
+
+    #[error("zip error: {0}")]
+    ZipError(#[from] zip::result::ZipError),
 }
 
 pub(crate) type EResult<T> = Result<T, CustomError>;

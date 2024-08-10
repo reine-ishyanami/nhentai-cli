@@ -17,11 +17,12 @@ tokio = { version = "1.39.2", features = ["full"] }  # 异步运行时
 tokio-macros = "2.4.0"
 serde = { version = "1.0", features = ["derive"] }  # 序列化
 serde_yaml = "0.9.34"  # yaml 格式文件序列化
-zip = "2.1.6"  # zip 文件操作
 thiserror = "1.0.63"  # 错误处理
 image = "=0.24.9"  # 图片处理
 pdf-writer = "0.10.0"  # pdf 文件操作
 miniz_oxide = "0.8.0"
+walkdir = "2.5.0"  # 文件夹遍历
+zip = { version = "2.1.6", features = ["aes-crypto"] }  # zip 文件操作
 
 
 [rustfmt]

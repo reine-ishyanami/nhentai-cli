@@ -3,10 +3,15 @@ extern crate image;
 use image::{ColorType, GenericImageView, ImageFormat};
 
 use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
+use walkdir::{DirEntry, WalkDir};
+use zip::AesMode;
+use zip::{result::ZipError, write::SimpleFileOptions};
 
-use std::fs;
-use std::path::PathBuf;
+use std::io::{Read, Seek};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::{error::Error, fs::File, io::Write};
+use std::fs;
 use tokio::task::JoinSet;
 
 use pdf_writer::{Content, Filter, Finish, Name, Pdf as PdfObject, Rect, Ref};
@@ -14,6 +19,7 @@ use pdf_writer::{Content, Filter, Finish, Name, Pdf as PdfObject, Rect, Ref};
 use clap::{Parser, Subcommand};
 
 use crate::config::{Compress, Config, Pdf};
+use crate::error::EResult;
 use crate::model::{HentaiDetail, HentaiStore};
 use crate::parse::{get_hentai_detail, get_hentai_list};
 use crate::request::{download_image, navigate};
@@ -138,9 +144,10 @@ async fn search(name: &String, language: &str) -> Result<HentaiDetail, Box<dyn E
 async fn download(name: &String, config: Config) {
     let base_url = "https://i3.nhentai.net/galleries";
     if let Ok(hentai_detail) = search(name, config.language.as_str()).await {
-        let mut path = PathBuf::new();
-        path.push(config.root_dir.as_str());
-        path.push(name);
+        // let mut path = PathBuf::new();
+        // path.push(config.root_dir.as_str());
+        // path.push(name);
+        let path = format!("{}/{}", config.root_dir, name);
         // 创建目录
         if let Err(e) = fs::create_dir_all(path) {
             log::warn!("create dir failed: {}", e);
@@ -148,13 +155,13 @@ async fn download(name: &String, config: Config) {
         // 并发任务集合
         let mut set = JoinSet::new();
         for ele in hentai_detail.res_list {
-            let mut path = PathBuf::new();
-            path.push(config.root_dir.as_str());
-            path.push(name);
-            path.push(ele.as_str());
+            // let mut path = PathBuf::new();
+            // path.push(config.root_dir.as_str());
+            // path.push(name);
+            // path.push(ele.as_str());
             let hentai_store = HentaiStore {
                 url: format!("{}/{}/{}", base_url, &hentai_detail.gallery, ele),
-                path: path,
+                path: PathBuf::from(format!("{}/{}/{}", config.root_dir, name, ele)),
             };
             set.spawn(download_image(hentai_store, config.retry_count, config.replace));
         }
@@ -276,7 +283,6 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
             };
 
             let (filter, encoded, mask) = match format {
-                // A JPEG is already valid DCT-encoded data.
                 ImageFormat::Jpeg => {
                     log::debug!("image {} format: jpeg , color {:?}", path.display(), dynamic.color());
                     match dynamic.color() {
@@ -369,5 +375,96 @@ fn compress(path: &String, name: &String, secret: &Option<String>, dir: &Option<
         Some(dir) => dir.clone(),
         None => compress_config.dir,
     };
-    todo!()
+    // 创建目录
+    if let Err(e) = fs::create_dir_all(&cpr_dir) {
+        log::warn!("create dir failed: {}", e);
+    }
+    let dst_file = PathBuf::from_str(format!("{}/{}.zip", cpr_dir, name).as_str()).unwrap();
+    let method = zip::CompressionMethod::Stored;
+    let src_dir = PathBuf::from_str(path).unwrap();
+    log::debug!("compress {:?} to {:?}", src_dir.display(), dst_file.display());
+    match doit(&src_dir, &dst_file, method, password) {
+        Ok(_) => log::info!("done: {:?} written to {:?}", path, dst_file),
+        Err(e) => log::error!("Error: {e:?}"),
+    }
+}
+
+/// 将指定目录树内容写入 zip 文件
+///
+/// # Arguments
+///
+/// * `it` - 源目录树
+/// * `prefix` - 源目录
+/// * `writer` - zip 文件
+/// * `method` - 压缩方法
+/// * `password` - zip 密码
+fn zip_dir<T>(
+    it: &mut dyn Iterator<Item = DirEntry>,
+    prefix: &Path,
+    writer: T,
+    method: zip::CompressionMethod,
+    password: String,
+) -> EResult<()>
+where
+    T: Write + Seek,
+{
+    let mut zip = zip::ZipWriter::new(writer);
+    if password.is_empty() {}
+    let options = if password.is_empty() {
+        SimpleFileOptions::default()
+            .compression_method(method)
+            .unix_permissions(0o755)
+    } else {
+        SimpleFileOptions::default()
+            .compression_method(method)
+            .with_aes_encryption(AesMode::Aes256, &password)
+            .unix_permissions(0o755)
+    };
+
+    let prefix = Path::new(prefix);
+    let mut buffer = Vec::new();
+    for entry in it {
+        let path = entry.path();
+        let name = path.strip_prefix(prefix).unwrap();
+        let path_as_string = name.to_str().map(str::to_owned).unwrap();
+
+        // 写入文件
+        if path.is_file() {
+            log::debug!("adding file {:?} as {:?} ...", path, name);
+            zip.start_file(path_as_string, options)?;
+            let mut f = File::open(path)?;
+
+            f.read_to_end(&mut buffer)?;
+            zip.write_all(&buffer)?;
+            buffer.clear();
+        } else if !name.as_os_str().is_empty() {
+            // Only if not root! Avoids path spec / warning
+            // and mapname conversion failed error on unzip
+            log::debug!("adding dir {:?} as {:?} ...", path_as_string, name);
+            zip.add_directory(path_as_string, options)?;
+        }
+    }
+    zip.finish()?;
+    Ok(())
+}
+
+/// 遍历文件夹文件，压缩成 zip 文件
+///
+/// # Arguments
+///
+/// * `src_dir` - 文件夹路径
+/// * `dst_file` - 压缩文件名
+/// * `method` - 压缩方式
+/// * `password` - 密码
+fn doit(src_dir: &Path, dst_file: &Path, method: zip::CompressionMethod, password: String) -> EResult<()> {
+    if !Path::new(src_dir).is_dir() {
+        return Err(ZipError::FileNotFound.into());
+    }
+    let path = Path::new(dst_file);
+    let file = File::create(path).unwrap();
+    let walkdir = WalkDir::new(src_dir);
+    let it = walkdir.into_iter();
+    zip_dir(&mut it.filter_map(|e| e.ok()), src_dir, file, method, password)?;
+
+    Ok(())
 }
