@@ -1,7 +1,6 @@
-use crate::error::CustomError;
-use crate::error::EResult;
-use crate::model::HentaiStore;
-use log;
+use crate::dep::error::CustomError;
+use crate::dep::error::EResult;
+use crate::dep::model::HentaiStore;
 use reqwest::Client;
 use std::{fs::File, io::Write};
 
@@ -19,7 +18,6 @@ const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 pub async fn navigate(url: &str) -> EResult<String> {
     // 创建一个客户端实例
     let client = Client::new();
-    log::debug!("Sending GET request to {}", url);
     // 发送 GET 请求，并添加自定义头部
     let response = client.get(url).header("User-Agent", USER_AGENT).send().await?;
     // 检查响应的状态码
@@ -29,7 +27,6 @@ pub async fn navigate(url: &str) -> EResult<String> {
         Ok(body)
     } else {
         // 如果响应状态码不是成功，返回错误
-        log::error!("Request failed with status code: {}", response.status());
         Err(CustomError::RequestError {
             message: "Request failed".to_owned(),
             code: response.status().as_u16(),
@@ -46,7 +43,6 @@ pub async fn navigate(url: &str) -> EResult<String> {
 /// * `retryCount` - 重试次数
 ///
 pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: bool) -> EResult<()> {
-    log::debug!("Downloading image from {}", hentai_store.url);
     let mut retry_count = 0u8;
     while retry_count < max_count {
         // 发送GET请求获取图片
@@ -57,7 +53,6 @@ pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: b
             let bytes = response.bytes().await?;
             // 判断文件是否存在
             if hentai_store.path.exists() {
-                log::warn!("文件已存在");
                 // 如果不允许替换已有文件
                 if !replace {
                     return Err(CustomError::FileError {
@@ -73,7 +68,6 @@ pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: b
             return Ok(());
         } else {
             retry_count += 1;
-            log::debug!("Retrying download image from {}", hentai_store.url);
         }
     }
     Err(CustomError::RequestError {
