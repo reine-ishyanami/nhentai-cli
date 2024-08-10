@@ -264,7 +264,7 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
     match std::fs::write(format!("{}/{}.pdf", pdf_dir, name), pdf.finish()) {
         Ok(_) => {},
         Err(e) => {
-            // @TODO 返回错误
+            todo!("错误处理")
         },
     }
 }
@@ -298,7 +298,7 @@ fn compress(path: &String, name: &String, secret: &Option<String>, dir: &Option<
     match doit(&src_dir, &dst_file, method, password) {
         Ok(_) => {},
         Err(e) => {
-            // @TODO 返回错误
+            todo!("错误处理")
         },
     }
 }

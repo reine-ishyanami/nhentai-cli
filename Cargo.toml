@@ -9,7 +9,6 @@ license = "AGPL"
 [dependencies]
 chrono = "0.4.38"  # 时间处理
 clap = { version = "4.5.13", features = ["derive"] }  # 命令行参数解析
-env_logger = "0.11.5"  # 日志
 reqwest = "0.12.5"  # 网络请求
 scraper = "0.20.0"  # 网页解析
 tokio = { version = "1.39.2", features = ["full"] }  # 异步运行时
