@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub log: Log,
-    pub language: String,
+    pub language: Language,
     pub retry_count: u8,
     pub root_dir: String,
     pub replace: bool,
@@ -18,7 +18,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             log: Log::default(),
-            language: "Chinese".to_owned(),
+            language: Language::default(),
             retry_count: 5u8,
             root_dir: ".".to_owned(),
             replace: false,
@@ -133,6 +133,55 @@ impl Default for Pdf {
         Self {
             enable: false,
             dir: "pdf".to_owned(),
+        }
+    }
+}
+
+/// 语言配置
+#[derive(Debug, Serialize)]
+pub enum Language {
+    Chinese,  // 中文
+    English,  // 英文
+    Japanese, // 日文
+}
+
+impl Default for Language {
+    fn default() -> Self {
+        Self::Chinese
+    }
+}
+
+impl<'de> Deserialize<'de> for Language {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let level = String::deserialize(deserializer)?;
+        Ok(match level.to_uppercase().as_str() {
+            "CHINESE" => Language::Chinese,
+            "ENGLISH" => Language::English,
+            "JAPANESE" => Language::Japanese,
+            _ => return Err(serde::de::Error::custom("Invalid language")),
+        })
+    }
+}
+
+impl Language {
+    /// 每一种语言对应的 data-tag
+    pub fn get_data_tag(&self) -> &str {
+        match self {
+            Language::Chinese => "29963",
+            Language::English => "12227",
+            Language::Japanese => "6346",
+        }
+    }
+
+    /// 每一种语言对应的 to_string
+    pub fn to_string(&self) -> String {
+        match self {
+            Language::Chinese => "Chinese".to_owned(),
+            Language::English => "English".to_owned(),
+            Language::Japanese => "Japanese".to_owned(),
         }
     }
 }

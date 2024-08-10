@@ -4,6 +4,7 @@ use std::path::PathBuf;
 pub struct HentaiHref {
     pub href: String,
     pub title: String,
+    pub data_tags: Vec<String>,
 }
 
 pub struct HentaiDetail {

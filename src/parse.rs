@@ -20,11 +20,13 @@ pub async fn get_hentai_list(html: &str) -> Vec<HentaiHref> {
     let caption_class = Selector::parse(".caption").unwrap(); // 选择所有的 caption 类
     let mut hentai_list = vec![];
     for element in fragment.select(&gallery_class) {
+        let data_tags   = element.value().attr("data-tags").unwrap().split(" ").map(|s| s.to_owned()).collect();
         let href = element.select(&a_tag).next().unwrap().value().attr("href").unwrap();
         let title = element.select(&caption_class).next().unwrap().inner_html();
         let hentai_href = HentaiHref {
             href: format!("https://nhentai.net{}", href),
-            title: title,
+            data_tags,
+            title,
         };
         hentai_list.push(hentai_href);
     }

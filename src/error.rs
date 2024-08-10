@@ -19,6 +19,9 @@ pub enum CustomError {
 
     #[error("zip error: {0}")]
     ZipError(#[from] zip::result::ZipError),
+
+    #[error("{language} language hentai not found")]
+    NotFoundError { language: String },
 }
 
 pub(crate) type EResult<T> = Result<T, CustomError>;

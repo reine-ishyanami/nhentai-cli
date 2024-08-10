@@ -1,5 +1,3 @@
-extern crate image;
-
 use image::{ColorType, GenericImageView, ImageFormat};
 
 use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
@@ -7,19 +5,19 @@ use walkdir::{DirEntry, WalkDir};
 use zip::AesMode;
 use zip::{result::ZipError, write::SimpleFileOptions};
 
+use std::fs;
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::{error::Error, fs::File, io::Write};
-use std::fs;
+use std::{fs::File, io::Write};
 use tokio::task::JoinSet;
 
 use pdf_writer::{Content, Filter, Finish, Name, Pdf as PdfObject, Rect, Ref};
 
 use clap::{Parser, Subcommand};
 
-use crate::config::{Compress, Config, Pdf};
-use crate::error::EResult;
+use crate::config::{Compress, Config, Language, Pdf};
+use crate::error::{CustomError, EResult};
 use crate::model::{HentaiDetail, HentaiStore};
 use crate::parse::{get_hentai_detail, get_hentai_list};
 use crate::request::{download_image, navigate};
@@ -115,23 +113,22 @@ fn generate(config: Config, file: &str) {
 ///
 /// * `Box<dyn Error>` - 搜索失败
 ///
-async fn search(name: &String, language: &str) -> Result<HentaiDetail, Box<dyn Error>> {
+async fn search(name: &String, language: &Language) -> EResult<HentaiDetail> {
     let base_url = format!("https://nhentai.net/search/?q={}", name);
     // 第一次请求，获取 hentai 列表
     let html = navigate(base_url.as_str()).await.unwrap();
     let hentai_list = get_hentai_list(html.as_str()).await;
-    // 根据所选语言匹配 hentai
     if let Some(target) = hentai_list
         .iter()
-        .filter(|hentai| hentai.title.contains(language))
-        .next()
+        .find(|hentai| hentai.data_tags.contains(&language.get_data_tag().to_owned()))
     {
+        log::debug!("found: {}", target.title);
         // 第二次请求，获取指定 hentai 主页
         let html = navigate(target.href.as_str()).await.unwrap();
         Ok(get_hentai_detail(html.as_str()).await)
     } else {
         log::error!("not found");
-        Err("language not found".into())
+        Err(CustomError::NotFoundError { language: language.to_string() })
     }
 }
 
@@ -143,10 +140,7 @@ async fn search(name: &String, language: &str) -> Result<HentaiDetail, Box<dyn E
 /// * `config` - 配置文件
 async fn download(name: &String, config: Config) {
     let base_url = "https://i3.nhentai.net/galleries";
-    if let Ok(hentai_detail) = search(name, config.language.as_str()).await {
-        // let mut path = PathBuf::new();
-        // path.push(config.root_dir.as_str());
-        // path.push(name);
+    if let Ok(hentai_detail) = search(name, &config.language).await {
         let path = format!("{}/{}", config.root_dir, name);
         // 创建目录
         if let Err(e) = fs::create_dir_all(path) {
@@ -155,10 +149,6 @@ async fn download(name: &String, config: Config) {
         // 并发任务集合
         let mut set = JoinSet::new();
         for ele in hentai_detail.res_list {
-            // let mut path = PathBuf::new();
-            // path.push(config.root_dir.as_str());
-            // path.push(name);
-            // path.push(ele.as_str());
             let hentai_store = HentaiStore {
                 url: format!("{}/{}/{}", base_url, &hentai_detail.gallery, ele),
                 path: PathBuf::from(format!("{}/{}/{}", config.root_dir, name, ele)),
@@ -170,7 +160,7 @@ async fn download(name: &String, config: Config) {
         while let Some(_) = set.join_next().await {}
         log::info!("download finished");
     } else {
-        log::error!("search nothing of {}", config.language.as_str());
+        log::error!("search nothing of {}", config.language.to_string());
     }
     if config.compress.enable {
         compress(&name, &name, &None, &None, config.compress);
@@ -465,6 +455,5 @@ fn doit(src_dir: &Path, dst_file: &Path, method: zip::CompressionMethod, passwor
     let walkdir = WalkDir::new(src_dir);
     let it = walkdir.into_iter();
     zip_dir(&mut it.filter_map(|e| e.ok()), src_dir, file, method, password)?;
-
     Ok(())
 }
