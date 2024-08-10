@@ -10,94 +10,20 @@ use zip::{result::ZipError, write::SimpleFileOptions};
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::{error::Error, fs::File, io::Write};
+use std::{ fs::File, io::Write};
 use std::fs;
+use anyhow::bail;
 use tokio::task::JoinSet;
 
 use pdf_writer::{Content, Filter, Finish, Name, Pdf as PdfObject, Rect, Ref};
 
 use clap::{Parser, Subcommand};
 
-use crate::config::{Compress, Config, Pdf};
-use crate::error::EResult;
-use crate::model::{HentaiDetail, HentaiStore};
-use crate::parse::{get_hentai_detail, get_hentai_list};
-use crate::request::{download_image, navigate};
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-pub struct Args {
-    #[command(subcommand)]
-    pub cmd: Commands,
-}
-
-#[derive(Subcommand, Debug, Clone)]
-pub enum Commands {
-    /// generate config file
-    Generate,
-    /// download hentai by name
-    Download {
-        /// hentai name
-        #[arg(short, long)]
-        name: String,
-    },
-    /// convert hentai to pdf
-    Convert {
-        /// hentai images path
-        #[arg(short, long)]
-        path: String,
-        /// hentai pdf name
-        #[arg(short, long)]
-        name: String,
-        /// hentai pdf store dir
-        #[arg(short, long)]
-        dir: Option<String>,
-    },
-    /// compress hentai to zip
-    Compress {
-        /// hentai images path
-        #[arg(short, long)]
-        path: String,
-        /// hentai zip name
-        #[arg(short, long)]
-        name: String,
-        /// hentai zip password
-        #[arg(short, long)]
-        secret: Option<String>,
-        /// hentai zip store dir
-        #[arg(short, long)]
-        dir: Option<String>,
-    },
-}
-
-impl Commands {
-    pub async fn run(&self, config: Config, file: &str) {
-        match self {
-            Commands::Generate => generate(config, file),
-            Commands::Download { name } => download(name, config).await,
-            Commands::Convert { path, name, dir } => convert(path, name, dir, config.pdf),
-            Commands::Compress {
-                path,
-                name,
-                secret,
-                dir,
-            } => compress(path, name, secret, dir, config.compress),
-        }
-    }
-}
-
-/// 生成默认配置文件
-///
-/// # Arguments
-///
-/// * `config` - 配置文件
-/// * `file` - 配置文件路径
-fn generate(config: Config, file: &str) {
-    let config_str = serde_yaml::to_string(&config).unwrap();
-    let mut file = File::create(file).unwrap();
-    file.write_all(config_str.as_bytes()).unwrap();
-    log::info!("generate config file success");
-}
+use crate::dep::config::{Compress, Config, Pdf};
+use crate::dep::error::EResult;
+use crate::dep::model::{HentaiDetail, HentaiStore};
+use crate::dep::parse::{get_hentai_detail, get_hentai_list};
+use crate::dep::request::{download_image, navigate};
 
 ///
 /// 根据 hentai 名称搜索 hentai
@@ -115,10 +41,11 @@ fn generate(config: Config, file: &str) {
 ///
 /// * `Box<dyn Error>` - 搜索失败
 ///
-async fn search(name: &String, language: &str) -> Result<HentaiDetail, Box<dyn Error>> {
-    let base_url = format!("https://nhentai.net/search/?q={}", name);
+pub(crate) async fn search(name: &str, language: &str) -> anyhow::Result<HentaiDetail> {
+    let base_url = format!("https://nhentai.net/search/?q={}", String::from(name));
     // 第一次请求，获取 hentai 列表
-    let html = navigate(base_url.as_str()).await.unwrap();
+    let html = navigate(base_url.as_str()).await?;
+    println!("{}", html);
     let hentai_list = get_hentai_list(html.as_str()).await;
     // 根据所选语言匹配 hentai
     if let Some(target) = hentai_list
@@ -130,8 +57,7 @@ async fn search(name: &String, language: &str) -> Result<HentaiDetail, Box<dyn E
         let html = navigate(target.href.as_str()).await.unwrap();
         Ok(get_hentai_detail(html.as_str()).await)
     } else {
-        log::error!("not found");
-        Err("language not found".into())
+        bail!("language not found")
     }
 }
 
@@ -150,7 +76,6 @@ async fn download(name: &String, config: Config) {
         let path = format!("{}/{}", config.root_dir, name);
         // 创建目录
         if let Err(e) = fs::create_dir_all(path) {
-            log::warn!("create dir failed: {}", e);
         }
         // 并发任务集合
         let mut set = JoinSet::new();
@@ -165,12 +90,9 @@ async fn download(name: &String, config: Config) {
             };
             set.spawn(download_image(hentai_store, config.retry_count, config.replace));
         }
-        log::info!("download start");
         // 当任务全部执行完毕
         while let Some(_) = set.join_next().await {}
-        log::info!("download finished");
     } else {
-        log::error!("search nothing of {}", config.language.as_str());
     }
     if config.compress.enable {
         compress(&name, &name, &None, &None, config.compress);
@@ -194,9 +116,7 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
         None => pdf_config.dir,
     };
     if let Err(e) = fs::create_dir_all(pdf_dir.as_str()) {
-        log::warn!("create dir failed: {}", e);
     }
-    log::info!("convert to pdf start");
     // 创建 pdf
     let mut pdf = PdfObject::new();
 
@@ -256,7 +176,6 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
     for (index, path) in paths.iter().enumerate() {
         // 只处理文件，忽略目录
         if path.is_file() {
-            log::debug!("processing file: {}", path.display());
             let path_clone = &path.clone();
             let file_name = path_clone.file_name().unwrap().to_str().unwrap();
             let page_id = *page_ids.get(index).unwrap();
@@ -284,7 +203,6 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
 
             let (filter, encoded, mask) = match format {
                 ImageFormat::Jpeg => {
-                    log::debug!("image {} format: jpeg , color {:?}", path.display(), dynamic.color());
                     match dynamic.color() {
                         ColorType::L8 => handle_png_l8(),
                         ColorType::Rgb8 => (Filter::DctDecode, data, None),
@@ -292,7 +210,6 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
                     }
                 }
                 ImageFormat::Png => {
-                    log::debug!("image {} format: png , color {:?}", path.display(), dynamic.color());
                     handle_png_l8()
                 }
                 _ => panic!("unsupported image format"),
@@ -329,13 +246,6 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
                 s_mask.bits_per_component(8);
             }
 
-            log::debug!(
-                "image {} size: {}x{}",
-                path.display(),
-                dynamic.width(),
-                dynamic.height()
-            );
-
             let w = dynamic.width() as f32;
             let h = dynamic.height() as f32;
 
@@ -352,8 +262,10 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
     }
     // 保存PDF文件
     match std::fs::write(format!("{}/{}.pdf", pdf_dir, name), pdf.finish()) {
-        Ok(_) => log::info!("save pdf {:?}", name),
-        Err(e) => panic!("{:?}", e),
+        Ok(_) => {},
+        Err(e) => {
+            // @TODO 返回错误
+        },
     }
 }
 
@@ -377,15 +289,17 @@ fn compress(path: &String, name: &String, secret: &Option<String>, dir: &Option<
     };
     // 创建目录
     if let Err(e) = fs::create_dir_all(&cpr_dir) {
-        log::warn!("create dir failed: {}", e);
+
     }
     let dst_file = PathBuf::from_str(format!("{}/{}.zip", cpr_dir, name).as_str()).unwrap();
     let method = zip::CompressionMethod::Stored;
     let src_dir = PathBuf::from_str(path).unwrap();
-    log::debug!("compress {:?} to {:?}", src_dir.display(), dst_file.display());
+
     match doit(&src_dir, &dst_file, method, password) {
-        Ok(_) => log::info!("done: {:?} written to {:?}", path, dst_file),
-        Err(e) => log::error!("Error: {e:?}"),
+        Ok(_) => {},
+        Err(e) => {
+            // @TODO 返回错误
+        },
     }
 }
 
@@ -430,7 +344,6 @@ where
 
         // 写入文件
         if path.is_file() {
-            log::debug!("adding file {:?} as {:?} ...", path, name);
             zip.start_file(path_as_string, options)?;
             let mut f = File::open(path)?;
 
@@ -440,7 +353,6 @@ where
         } else if !name.as_os_str().is_empty() {
             // Only if not root! Avoids path spec / warning
             // and mapname conversion failed error on unzip
-            log::debug!("adding dir {:?} as {:?} ...", path_as_string, name);
             zip.add_directory(path_as_string, options)?;
         }
     }
