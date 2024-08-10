@@ -37,10 +37,12 @@ async fn download(name:&str, language:&str, download_dir:&str, replace_if_exist:
         };
         set.spawn(download_image(hentai_store, 0, replace_if_exist));
     }
+    todo!("增加pdf和zip参数，增加pdf和zip处理方法");
     Ok(())
 }
 
 #[cfg(test)]
+
 mod tests {
 
     macro_rules! aw {
@@ -54,7 +56,7 @@ mod tests {
     fn download_test() {
         println!("{:?}",
                  aw!(
-            download("触手落とし穴と女魔導士ちゃん","Chinese" ,"D:\\SoftwareLibrary\\code\\GitHubCode\\nhentai-rs\\target\\download", true)
+            download("触手落とし穴と女魔導士ちゃん","Chinese" ,".", true)
         ));
     }
 }

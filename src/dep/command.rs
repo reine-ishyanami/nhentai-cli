@@ -17,7 +17,7 @@ use tokio::task::JoinSet;
 
 use pdf_writer::{Content, Filter, Finish, Name, Pdf as PdfObject, Rect, Ref};
 
-use clap::{Parser, Subcommand};
+use clap::{Parser};
 
 use crate::dep::config::{Compress, Config, Pdf};
 use crate::dep::error::EResult;
