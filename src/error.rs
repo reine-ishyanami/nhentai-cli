@@ -18,5 +18,4 @@ pub enum CustomError {
     SerdeError(#[from] serde_yaml::Error),
 }
 
-
 pub(crate) type EResult<T> = Result<T, CustomError>;

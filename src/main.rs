@@ -1,14 +1,15 @@
 mod command;
 mod config;
-mod request;
-mod parse;
-mod model;
 mod error;
+mod model;
+mod parse;
+mod request;
 
 use std::{
     fs::File,
     io::{Read, Write},
-    path::Path, thread,
+    path::Path,
+    thread,
 };
 
 use crate::command::Args;
@@ -52,20 +53,20 @@ fn load_config(file_name: &str) -> EResult<Config> {
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;
         config = serde_yaml::from_str(&contents)?;
-        Builder::new()
-            .parse_filters(config.log.level.to_string().as_str())
-            .format(|buf, record| {
-                writeln!(
-                    buf,
-                    "{} [{:5}] [{:20}] [{:20}] {}",
-                    Local::now().format("%Y-%m-%dT%H:%M:%S"),
-                    record.level(),
-                    record.target(),
-                    thread::current().name().unwrap_or("unknown"),
-                    record.args()
-                )
-            })
-            .init();
     }
+    Builder::new()
+        .parse_filters(config.log.level.to_string().as_str())
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} [{:5}] [{:20}] [{:20}] {}",
+                Local::now().format("%Y-%m-%dT%H:%M:%S"),
+                record.level(),
+                record.target(),
+                thread::current().name().unwrap_or("unknown"),
+                record.args()
+            )
+        })
+        .init();
     Ok(config)
 }

@@ -282,7 +282,7 @@ fn convert(path: &String, name: &String, dir: &Option<String>, pdf_config: Pdf) 
                     match dynamic.color() {
                         ColorType::L8 => handle_png_l8(),
                         ColorType::Rgb8 => (Filter::DctDecode, data, None),
-                        _ => panic!("unsupported color type: {:?}", dynamic.color())
+                        _ => panic!("unsupported color type: {:?}", dynamic.color()),
                     }
                 }
                 ImageFormat::Png => {

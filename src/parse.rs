@@ -44,7 +44,13 @@ pub async fn get_hentai_list(html: &str) -> Vec<HentaiHref> {
 pub async fn get_hentai_detail(html: &str) -> HentaiDetail {
     let fragment = Html::parse_document(html);
     let cover_id_img_tag = Selector::parse("#cover img").unwrap(); // 选择所有的 cover img 标签
-    let src_url = fragment.select(&cover_id_img_tag).next().unwrap().value().attr("data-src").unwrap();
+    let src_url = fragment
+        .select(&cover_id_img_tag)
+        .next()
+        .unwrap()
+        .value()
+        .attr("data-src")
+        .unwrap();
     let split: Vec<&str> = src_url.split('/').collect();
     let gallery = split[split.len() - 2];
     let container_id = Selector::parse("#thumbnail-container .thumbs").unwrap();
@@ -53,7 +59,13 @@ pub async fn get_hentai_detail(html: &str) -> HentaiDetail {
     let mut res_list: Vec<String> = Vec::new();
     log::debug!("collect images url");
     for element in fragment.select(&container_id).next().unwrap().select(&container_class) {
-        let src_url = element.select(&img_tag).next().unwrap().value().attr("data-src").unwrap();
+        let src_url = element
+            .select(&img_tag)
+            .next()
+            .unwrap()
+            .value()
+            .attr("data-src")
+            .unwrap();
         let split: Vec<&str> = src_url.split('/').collect();
         let last_segment = split[split.len() - 1];
         let img: Vec<&str> = last_segment.split('.').collect();
