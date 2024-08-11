@@ -3,7 +3,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum CustomError {
     #[error("request error: {message}")]
-    RequestError { message: String, code: u16 },
+    RequestError { message: String },
 
     #[error("file system error: {message}")]
     FileError { message: String },

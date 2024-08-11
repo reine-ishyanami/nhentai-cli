@@ -116,7 +116,7 @@ fn generate(config: Config, file: &str) {
 async fn search(name: &str, language: &Language) -> EResult<HentaiDetail> {
     let base_url = format!("https://nhentai.net/search/?q={}", name);
     // 第一次请求，获取 hentai 列表
-    let html = navigate(base_url.as_str()).await.unwrap();
+    let html = navigate(base_url.as_str()).await.expect("navigate failed");
     let hentai_list = get_hentai_list(html.as_str()).await;
     if let Some(target) = hentai_list
         .iter()
@@ -124,10 +124,10 @@ async fn search(name: &str, language: &Language) -> EResult<HentaiDetail> {
     {
         log::debug!("found: {}", target.title);
         // 第二次请求，获取指定 hentai 主页
-        let html = navigate(target.href.as_str()).await.unwrap();
+        let html = navigate(target.href.as_str()).await.expect("navigate failed");
         Ok(get_hentai_detail(html.as_str()).await)
     } else {
-        log::error!("not found");
+        log::error!("{} hentai not found", language);
         Err(CustomError::NotFoundError {
             language: language.to_string(),
         })
@@ -161,8 +161,6 @@ async fn download(name: &str, config: Config) {
         // 当任务全部执行完毕
         while let Some(_) = set.join_next().await {}
         log::info!("download finished");
-    } else {
-        log::error!("search nothing of {}", config.language.to_string());
     }
     if config.compress.enable {
         compress(name, name, &None, &None, config.compress);
@@ -206,12 +204,26 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: Pdf) {
     let mut content_ids = Vec::new();
     let mut paths = Vec::new();
 
+    // 定义图片文件的扩展名
+    let image_extensions = vec!["jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg", "webp"];
+
     for (index, entry) in entries.enumerate() {
-        page_ids.push(Ref::new(index as i32 * 4 + 20));
-        image_ids.push(Ref::new(index as i32 * 4 + 20 + 1));
-        s_mask_ids.push(Ref::new(index as i32 * 4 + 20 + 2));
-        content_ids.push(Ref::new(index as i32 * 4 + 20 + 3));
-        paths.push(entry.unwrap().path());
+        // 判断项目是否是图片类型文件
+        let path = entry.unwrap().path();
+        if let Some(ext) = path.extension() {
+            let is_image = image_extensions.contains(&ext.to_string_lossy().to_lowercase().as_str());
+            if is_image {
+                page_ids.push(Ref::new(index as i32 * 4 + 20));
+                image_ids.push(Ref::new(index as i32 * 4 + 20 + 1));
+                s_mask_ids.push(Ref::new(index as i32 * 4 + 20 + 2));
+                content_ids.push(Ref::new(index as i32 * 4 + 20 + 3));
+                paths.push(path);
+            } else {
+                log::warn!("file {} is not a image, skip", path.display());
+            }
+        } else {
+            log::error!("文件拓展名不合法: {:?}", path);
+        }
     }
     // 设置 pdf 参数
     let page_ids_clone = page_ids.clone();
@@ -220,25 +232,17 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: Pdf) {
 
     paths.sort_by(|a, b| {
         let a: u16 = a
-            .file_name()
+            .file_stem()
             .unwrap()
-            .to_str()
-            .unwrap()
-            .split(".")
-            .next()
-            .unwrap()
+            .to_string_lossy()
             .parse()
-            .expect("请不要在资源文件夹中添加非图片文件");
+            .expect("请用阿拉伯数字按顺序命名图片");
         let b: u16 = b
-            .file_name()
+            .file_stem()
             .unwrap()
-            .to_str()
-            .unwrap()
-            .split(".")
-            .next()
-            .unwrap()
+            .to_string_lossy()
             .parse()
-            .expect("请不要在资源文件夹中添加非图片文件");
+            .expect("请用阿拉伯数字按顺序命名图片");
         a.cmp(&b)
     });
 
@@ -283,7 +287,7 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: Pdf) {
                         _ => {
                             log::error!("unsupported color type: {:?}", dynamic.color());
                             continue;
-                        },
+                        }
                     }
                 }
                 ImageFormat::Png => {
@@ -380,7 +384,7 @@ fn compress(path: &str, name: &str, secret: &Option<String>, dir: &Option<String
     let dst_file = PathBuf::from_str(format!("{}/{}.zip", cpr_dir, name).as_str()).unwrap();
     let method = zip::CompressionMethod::Stored;
     let src_dir = PathBuf::from_str(path).unwrap();
-    log::debug!("compress {:?} to {:?}", src_dir.display(), dst_file.display());
+    log::info!("compress {:?} to {:?}", src_dir.display(), dst_file.display());
     match doit(&src_dir, &dst_file, method, password) {
         Ok(_) => log::info!("done: {:?} written to {:?}", path, dst_file),
         Err(e) => log::error!("Error: {:?}", e),
@@ -407,7 +411,7 @@ where
     T: Write + Seek,
 {
     let mut zip = zip::ZipWriter::new(writer);
-    if password.is_empty() {}
+    // 密码为空则不设置密码
     let options = if password.is_empty() {
         SimpleFileOptions::default()
             .compression_method(method)
@@ -431,13 +435,10 @@ where
             log::debug!("adding file {:?} as {:?} ...", path, name);
             zip.start_file(path_as_string, options)?;
             let mut f = File::open(path)?;
-
             f.read_to_end(&mut buffer)?;
             zip.write_all(&buffer)?;
             buffer.clear();
         } else if !name.as_os_str().is_empty() {
-            // Only if not root! Avoids path spec / warning
-            // and mapname conversion failed error on unzip
             log::debug!("adding dir {:?} as {:?} ...", path_as_string, name);
             zip.add_directory(path_as_string, options)?;
         }

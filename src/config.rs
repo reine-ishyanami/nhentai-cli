@@ -151,6 +151,16 @@ impl Default for Language {
     }
 }
 
+impl fmt::Display for Language {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Language::Chinese => write!(f, "Chinese"),
+            Language::English => write!(f, "English"),
+            Language::Japanese => write!(f, "Japanese"),
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for Language {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -173,15 +183,6 @@ impl Language {
             Language::Chinese => "29963",
             Language::English => "12227",
             Language::Japanese => "6346",
-        }
-    }
-
-    /// 每一种语言对应的 to_string
-    pub fn to_string(&self) -> String {
-        match self {
-            Language::Chinese => "Chinese".to_owned(),
-            Language::English => "English".to_owned(),
-            Language::Japanese => "Japanese".to_owned(),
         }
     }
 }

@@ -29,11 +29,9 @@ pub async fn navigate(url: &str) -> EResult<String> {
         Ok(body)
     } else {
         // 如果响应状态码不是成功，返回错误
-        log::error!("Request failed with status code: {}", response.status());
-        Err(CustomError::RequestError {
-            message: "Request failed".to_owned(),
-            code: response.status().as_u16(),
-        })
+        let message = "Request Page Content failed".to_owned();
+        log::error!("{}", message);
+        Err(CustomError::RequestError { message })
     }
 }
 
@@ -57,12 +55,11 @@ pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: b
             let bytes = response.bytes().await?;
             // 判断文件是否存在
             if hentai_store.path.exists() {
-                log::warn!("文件已存在");
+                let message = format!("{:?} 文件已存在", hentai_store.path.file_name());
+                log::warn!("{}", message);
                 // 如果不允许替换已有文件
                 if !replace {
-                    return Err(CustomError::FileError {
-                        message: format!("{:?} 文件已存在", hentai_store.path.file_name()),
-                    });
+                    return Err(CustomError::FileError { message });
                 }
             }
             // 打开文件准备写入
@@ -76,8 +73,6 @@ pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: b
             log::debug!("Retrying download image from {}", hentai_store.url);
         }
     }
-    Err(CustomError::RequestError {
-        message: "Too many retries".to_owned(),
-        code: 400u16,
-    })
+    let message = format!("{:?} Too many retries", hentai_store.path.file_name());
+    Err(CustomError::RequestError { message })
 }
