@@ -12,11 +12,11 @@ use std::str::FromStr;
 use std::{fs::File, io::Write};
 use tokio::task::JoinSet;
 
-use pdf_writer::{Content, Filter, Finish, Name, Pdf as PdfObject, Rect, Ref};
+use pdf_writer::{Content, Filter, Finish, Name, Pdf, Rect, Ref};
 
 use clap::{Parser, Subcommand};
 
-use crate::config::{Compress, Config, Language, Pdf};
+use crate::config::{CompressConfig, Config, Language, PdfConfig};
 use crate::error::{CustomError, EResult};
 use crate::model::{HentaiDetail, HentaiStore};
 use crate::parse::{get_hentai_detail, get_hentai_list};
@@ -24,7 +24,7 @@ use crate::request::{download_image, navigate};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
-pub struct Args {
+pub struct App {
     #[command(subcommand)]
     pub cmd: Commands,
 }
@@ -178,7 +178,7 @@ async fn download(name: &str, config: Config) {
 /// * `name` - hentai pdf 名称
 /// * `dir` - pdf 存储路径
 /// * `pdf_config` - pdf 配置
-fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: Pdf) {
+fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: PdfConfig) {
     let pdf_dir = match dir {
         Some(dir) => dir.clone(),
         None => pdf_config.dir,
@@ -188,7 +188,7 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: Pdf) {
     }
     log::info!("convert to pdf start");
     // 创建 pdf
-    let mut pdf = PdfObject::new();
+    let mut pdf = Pdf::new();
 
     // 定义 pdf 参数
     let catalog_id = Ref::new(1);
@@ -368,7 +368,7 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: Pdf) {
 /// * `secret` - zip 密码
 /// * `dir` - zip 存储路径
 /// * `compress_config` - 打包配置
-fn compress(path: &str, name: &str, secret: &Option<String>, dir: &Option<String>, compress_config: Compress) {
+fn compress(path: &str, name: &str, secret: &Option<String>, dir: &Option<String>, compress_config: CompressConfig) {
     let password = match secret {
         Some(secret) => secret.clone(),
         None => compress_config.password,

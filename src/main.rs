@@ -12,7 +12,7 @@ use std::{
     thread,
 };
 
-use crate::command::Args;
+use crate::command::App;
 use crate::config::Config;
 use crate::error::EResult;
 use chrono::Local;
@@ -23,7 +23,7 @@ const CONFIG_FILE_PATH: &str = "config.yaml";
 
 #[tokio::main]
 async fn main() {
-    let args = Args::parse();
+    let args = App::parse();
     let config: Config = match load_config(CONFIG_FILE_PATH) {
         Ok(config) => config,
         Err(e) => panic!("配置文件格式异常: {}", e),

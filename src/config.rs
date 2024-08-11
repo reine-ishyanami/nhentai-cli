@@ -5,35 +5,35 @@ use serde::{Deserialize, Deserializer, Serialize};
 /// 配置文件
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub log: Log,
+    pub log: LogConfig,
     pub language: Language,
     pub retry_count: u8,
     pub root_dir: String,
     pub replace: bool,
-    pub compress: Compress,
-    pub pdf: Pdf,
+    pub compress: CompressConfig,
+    pub pdf: PdfConfig,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            log: Log::default(),
+            log: LogConfig::default(),
             language: Language::default(),
             retry_count: 5u8,
             root_dir: ".".to_owned(),
             replace: false,
-            compress: Compress::default(),
-            pdf: Pdf::default(),
+            compress: CompressConfig::default(),
+            pdf: PdfConfig::default(),
         }
     }
 }
 
 /// 模块日志等级配置
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Log {
+pub struct LogConfig {
     pub level: LogLevelMap,
 }
-impl Default for Log {
+impl Default for LogConfig {
     fn default() -> Self {
         Self {
             level: LogLevelMap::default(),
@@ -56,10 +56,14 @@ impl Default for LogLevelMap {
 impl fmt::Display for LogLevelMap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut pairs: Vec<String> = Vec::new();
-        for (key, value) in &self.0 {
-            pairs.push(format!("{}={}", key, value));
+        if let Some(log) = self.0.get("root") {
+            write!(f, "{}", log)
+        } else {
+            for (key, value) in &self.0 {
+                pairs.push(format!("{}={}", key, value));
+            }
+            write!(f, "{}", pairs.join(","))
         }
-        write!(f, "{}", pairs.join(","))
     }
 }
 
@@ -105,13 +109,13 @@ impl fmt::Display for LogLevel {
 
 /// 压缩配置
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Compress {
+pub struct CompressConfig {
     pub enable: bool,
     pub password: String,
     pub dir: String,
 }
 
-impl Default for Compress {
+impl Default for CompressConfig {
     fn default() -> Self {
         Self {
             enable: false,
@@ -123,12 +127,12 @@ impl Default for Compress {
 
 /// PDF配置
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Pdf {
+pub struct PdfConfig {
     pub enable: bool,
     pub dir: String,
 }
 
-impl Default for Pdf {
+impl Default for PdfConfig {
     fn default() -> Self {
         Self {
             enable: false,
