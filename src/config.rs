@@ -142,7 +142,7 @@ impl Default for PdfConfig {
 }
 
 /// 语言配置
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, PartialEq, Eq)]
 pub enum Language {
     Chinese,  // 中文
     English,  // 英文
@@ -181,12 +181,14 @@ impl<'de> Deserialize<'de> for Language {
 }
 
 impl Language {
-    /// 每一种语言对应的 data-tag
-    pub fn get_data_tag(&self) -> &str {
-        match self {
-            Language::Chinese => "29963",
-            Language::English => "12227",
-            Language::Japanese => "6346",
+    // 这个方法将 data-tag 转换为对应的Language枚举
+    pub fn from_data_tag(data_tag: &str) -> Option<Self> {
+        match data_tag {
+            "29963" => Some(Language::Chinese),
+            "12227" => Some(Language::English),
+            "6346" => Some(Language::Japanese),
+            _ => None,
         }
     }
 }
+

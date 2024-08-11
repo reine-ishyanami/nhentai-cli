@@ -1,10 +1,11 @@
 use std::path::PathBuf;
+use crate::config::Language;
 
 #[derive(Debug, Clone)]
 pub struct HentaiHref {
     pub href: String,
     pub title: String,
-    pub data_tags: Vec<String>,
+    pub language: Language,
 }
 
 pub struct HentaiDetail {
@@ -16,3 +17,4 @@ pub struct HentaiStore {
     pub url: String,
     pub path: PathBuf,
 }
+

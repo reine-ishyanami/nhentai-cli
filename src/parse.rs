@@ -1,4 +1,7 @@
-use crate::model::{HentaiDetail, HentaiHref};
+use crate::{
+    config::Language,
+    model::{HentaiDetail, HentaiHref},
+};
 use log;
 use scraper::{selectable::Selectable, Html, Selector};
 
@@ -20,15 +23,28 @@ pub async fn get_hentai_list(html: &str) -> Vec<HentaiHref> {
     let caption_class = Selector::parse(".caption").unwrap(); // 选择所有的 caption 类
     let mut hentai_list = vec![];
     for element in fragment.select(&gallery_class) {
-        let data_tags   = element.value().attr("data-tags").unwrap().split(" ").map(|s| s.to_owned()).collect();
-        let href = element.select(&a_tag).next().unwrap().value().attr("href").unwrap();
-        let title = element.select(&caption_class).next().unwrap().inner_html();
-        let hentai_href = HentaiHref {
-            href: format!("https://nhentai.net{}", href),
-            data_tags,
-            title,
-        };
-        hentai_list.push(hentai_href);
+        let data_tags: Vec<String> = element
+            .value()
+            .attr("data-tags")
+            .unwrap()
+            .split(" ")
+            .map(|s| s.to_owned())
+            .collect();
+        // 遍历向量中的data_tags
+        for data_tag in data_tags.iter() {
+            // 尝试从data_tag创建Language枚举实例
+            if let Some(language) = Language::from_data_tag(data_tag) {
+                let href = element.select(&a_tag).next().unwrap().value().attr("href").unwrap();
+                let title = element.select(&caption_class).next().unwrap().inner_html();
+                let hentai_href = HentaiHref {
+                    href: format!("https://nhentai.net{}", href),
+                    title,
+                    language
+                };
+                hentai_list.push(hentai_href);
+                break; // 找到第一个匹配的标签后跳出循环
+            }
+        }
     }
     hentai_list
 }

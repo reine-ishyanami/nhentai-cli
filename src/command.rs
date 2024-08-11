@@ -120,7 +120,7 @@ async fn search(name: &str, language: &Language) -> EResult<HentaiDetail> {
     let hentai_list = get_hentai_list(html.as_str()).await;
     if let Some(target) = hentai_list
         .iter()
-        .find(|hentai| hentai.data_tags.contains(&language.get_data_tag().to_owned()))
+        .find(|hentai| hentai.language == *language)
     {
         log::debug!("found: {}", target.title);
         // 第二次请求，获取指定 hentai 主页
