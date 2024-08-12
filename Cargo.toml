@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "download hentai images from nhentai.net"
 license = "AGPL"
+repository = "https://github.com/reine-ishyanami/nhentai-rs"
 
 
 [dependencies]
@@ -11,7 +12,7 @@ chrono = "0.4.38"  # 时间处理
 clap = { version = "4.5.13", features = ["derive"] }  # 命令行参数解析
 env_logger = "0.11.5"  # 日志
 log = "0.4.22"  # 日志门面
-reqwest = "0.12.5"  # 网络请求
+reqwest = { version = "0.12.5", default-features = false, features = ["rustls-tls"] }  # 网络请求
 scraper = "0.20.0"  # 网页解析
 tokio = { version = "1.39.2", features = ["full"] }  # 异步运行时
 tokio-macros = "2.4.0"
@@ -27,3 +28,19 @@ image = "0.25.2"  # 图片处理
 
 [rustfmt]
 path = ".rustfmt.toml" # 指定配置文件的路径
+
+# The profile that 'cargo dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Config for 'cargo dist'
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.20.0"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = []
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
