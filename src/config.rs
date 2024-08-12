@@ -55,16 +55,16 @@ impl Default for LogLevelMap {
     }
 }
 
-impl fmt::Display for LogLevelMap {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl ToString for LogLevelMap {
+    fn to_string(&self) -> String {
         let mut pairs: Vec<String> = Vec::new();
         if let Some(log) = self.0.get("root") {
-            write!(f, "{}", log)
+            format!("{}", log)
         } else {
             for (key, value) in &self.0 {
                 pairs.push(format!("{}={}", key, value));
             }
-            write!(f, "{}", pairs.join(","))
+            format!("{}", pairs.join(","))
         }
     }
 }
@@ -190,6 +190,14 @@ impl Language {
             "12227" => Some(Language::English),
             "6346" => Some(Language::Japanese),
             _ => None,
+        }
+    }
+    // 获取图标
+    pub fn get_icon(&self) -> &str{
+        match self {
+            Language::Chinese => "🇨🇳",
+            Language::English => "🇬🇧",
+            Language::Japanese => "🇯🇵",
         }
     }
 }

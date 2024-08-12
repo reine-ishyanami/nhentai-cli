@@ -47,8 +47,7 @@ async fn main() {
 ///
 fn load_config(file_name: &str) -> EResult<Config> {
     let mut config: Config = Config::default();
-    if let Ok(f) = File::open(Path::new(file_name)) {
-        let mut file = f;
+    if let Ok(mut file) = File::open(Path::new(file_name)) {
         // 读取文件内容到字符串
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;

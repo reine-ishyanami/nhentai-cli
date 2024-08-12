@@ -11,12 +11,7 @@ pub struct HentaiHref {
 
 impl ToString for HentaiHref {
     fn to_string(&self) -> String {
-        let language_icon = match self.language {
-            Language::Chinese => "🇨🇳",
-            Language::English => "🇬🇧",
-            Language::Japanese => "🇯🇵",
-        };
-        format!("{} {} ", language_icon, self.title)
+        format!("{} {} ", self.language.get_icon(), self.title)
     }
 }
 
