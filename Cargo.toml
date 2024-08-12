@@ -24,6 +24,7 @@ miniz_oxide = "0.8.0"
 walkdir = "2.5.0"  # 文件夹遍历
 zip = { version = "2.1.6", features = ["aes-crypto"] }  # zip 文件操作
 image = "0.25.2"  # 图片处理
+dialoguer = "0.11.0"  # 命令行交互
 
 
 [rustfmt]

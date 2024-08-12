@@ -10,6 +10,7 @@ pub struct Config {
     pub retry_count: u8,
     pub root_dir: String,
     pub replace: bool,
+    pub interaction: bool,
     pub compress: CompressConfig,
     pub pdf: PdfConfig,
 }
@@ -22,6 +23,7 @@ impl Default for Config {
             retry_count: 5u8,
             root_dir: ".".to_owned(),
             replace: false,
+            interaction: false,
             compress: CompressConfig::default(),
             pdf: PdfConfig::default(),
         }

@@ -1,3 +1,5 @@
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Select;
 use image::{ColorType, GenericImageView, ImageFormat};
 
 use miniz_oxide::deflate::{compress_to_vec_zlib, CompressionLevel};
@@ -18,7 +20,7 @@ use clap::{Parser, Subcommand};
 
 use crate::config::{CompressConfig, Config, Language, PdfConfig};
 use crate::error::{CustomError, EResult};
-use crate::model::{HentaiDetail, HentaiStore};
+use crate::model::{HentaiDetail, HentaiHref, HentaiStore};
 use crate::parse::{get_hentai_detail, get_hentai_list};
 use crate::request::{download_image, navigate};
 
@@ -113,18 +115,30 @@ fn generate(config: Config, file: &str) {
 ///
 /// * `Box<dyn Error>` - 搜索失败
 ///
-async fn search(name: &str, language: &Language) -> EResult<HentaiDetail> {
+async fn search(name: &str, language: &Language, interaction: bool) -> EResult<HentaiDetail> {
     let base_url = format!("https://nhentai.net/search/?q={}", name);
     // 第一次请求，获取 hentai 列表
     let html = navigate(base_url.as_str()).await.expect("navigate failed");
     let hentai_list = get_hentai_list(html.as_str()).await;
-    if let Some(target) = hentai_list
-        .iter()
-        .find(|hentai| hentai.language == *language)
-    {
-        log::debug!("found: {}", target.title);
+    let hentai_arr: &[HentaiHref] = &hentai_list;
+
+    let single_hentai_href = if interaction {
+        // 如果是交互模式，则让终端用户选择一个 hentai
+        let selection = Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("Pick Hentai You Want ")
+            .default(0)
+            .items(hentai_arr)
+            .interact()
+            .unwrap();
+        Some(&hentai_arr[selection])
+    } else {
+        // 非交互模式下，选择符合对应语言的第一个 hentai
+        hentai_list.iter().find(|hentai| hentai.language == *language)
+    };
+    if let Some(hentai) = single_hentai_href {
+        log::debug!("found: {}", hentai.title);
         // 第二次请求，获取指定 hentai 主页
-        let html = navigate(target.href.as_str()).await.expect("navigate failed");
+        let html = navigate(hentai.href.as_str()).await.expect("navigate failed");
         Ok(get_hentai_detail(html.as_str()).await)
     } else {
         log::error!("{} hentai not found", language);
@@ -142,7 +156,7 @@ async fn search(name: &str, language: &Language) -> EResult<HentaiDetail> {
 /// * `config` - 配置文件
 async fn download(name: &str, config: Config) {
     let base_url = "https://i3.nhentai.net/galleries";
-    if let Ok(hentai_detail) = search(name, &config.language).await {
+    if let Ok(hentai_detail) = search(name, &config.language, config.interaction).await {
         let path = format!("{}/{}", config.root_dir, name);
         // 创建目录
         if let Err(e) = fs::create_dir_all(path) {
