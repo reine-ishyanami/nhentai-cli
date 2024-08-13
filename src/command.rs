@@ -40,6 +40,9 @@ pub enum Commands {
         /// hentai name
         #[arg(short, long)]
         name: String,
+        /// interaction
+        #[arg(short, long)]
+        interaction: Option<bool>,
     },
     /// convert hentai to pdf
     Convert {
@@ -74,7 +77,7 @@ impl Commands {
     pub async fn run(&self, config: Config, file: &str) {
         match self {
             Commands::Generate => generate(config, file),
-            Commands::Download { name } => download(name, config).await,
+            Commands::Download { name, interaction } => download(name, config, interaction).await,
             Commands::Convert { path, name, dir } => convert(path, name, dir, config.pdf),
             Commands::Compress {
                 path,
@@ -106,6 +109,7 @@ fn generate(config: Config, file: &str) {
 ///
 /// * `name` - hentai 名称
 /// * `language` - 语言
+/// * `interaction` - 是否交互模式
 ///
 /// # Returns
 ///
@@ -154,9 +158,16 @@ async fn search(name: &str, language: &Language, interaction: bool) -> EResult<H
 ///
 /// * `name` - hentai 名称
 /// * `config` - 配置文件
-async fn download(name: &str, config: Config) {
+/// * `interaction` - 是否开启交互模式
+async fn download(name: &str, config: Config, interaction: &Option<bool>) {
     let base_url = "https://i3.nhentai.net/galleries";
-    if let Ok(hentai_detail) = search(name, &config.language, config.interaction).await {
+    // 如果传入了是否开启交互式的参数
+    let interaction = if let Some(interaction) = interaction {
+        *interaction
+    } else {
+        config.interaction
+    };
+    if let Ok(hentai_detail) = search(name, &config.language, interaction).await {
         let path = format!("{}/{}", config.root_dir, name);
         // 创建目录
         if let Err(e) = fs::create_dir_all(path) {
