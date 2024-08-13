@@ -193,7 +193,7 @@ impl Language {
         }
     }
     // 获取图标
-    pub fn get_icon(&self) -> &str{
+    pub fn get_icon(&self) -> &str {
         match self {
             Language::Chinese => "🇨🇳",
             Language::English => "🇬🇧",
@@ -201,4 +201,3 @@ impl Language {
         }
     }
 }
-

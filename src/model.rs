@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use crate::config::Language;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone)]
 pub struct HentaiHref {
@@ -7,7 +7,6 @@ pub struct HentaiHref {
     pub title: String,
     pub language: Language,
 }
-
 
 impl ToString for HentaiHref {
     fn to_string(&self) -> String {
@@ -24,4 +23,3 @@ pub struct HentaiStore {
     pub url: String,
     pub path: PathBuf,
 }
-

@@ -39,7 +39,7 @@ pub async fn get_hentai_list(html: &str) -> Vec<HentaiHref> {
                 let hentai_href = HentaiHref {
                     href: format!("https://nhentai.net{}", href),
                     title,
-                    language
+                    language,
                 };
                 hentai_list.push(hentai_href);
                 break; // 找到第一个匹配的标签后跳出循环
