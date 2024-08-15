@@ -271,8 +271,6 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: PdfConfig) 
         a.cmp(&b)
     });
 
-    // let entries = fs::read_dir(path).unwrap();
-
     // 遍历目录中的每个文件
     for (index, path) in paths.iter().enumerate() {
         // 只处理文件，忽略目录
@@ -284,97 +282,16 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: PdfConfig) 
             let image_id = *image_ids.get(index).unwrap();
             let content_id = *content_ids.get(index).unwrap();
             let s_mask_id = *s_mask_ids.get(index).unwrap();
-            let image_name = Name(file_name.as_bytes());
-            let mut page = pdf.page(page_id);
-
-            // 解析图片
-            let data = std::fs::read(path).unwrap();
-            let format = image::guess_format(&data).unwrap();
-            let dynamic = image::load_from_memory(&data).unwrap();
-
-            // 处理 png 文件或者 l8 色域图片
-            let handle_png_l8 = || {
-                let level = CompressionLevel::DefaultLevel as u8;
-                let encoded = compress_to_vec_zlib(dynamic.to_rgb8().as_raw(), level);
-                let mask = dynamic.color().has_alpha().then(|| {
-                    let alphas: Vec<_> = dynamic.pixels().map(|p| (p.2).0[3]).collect();
-                    compress_to_vec_zlib(&alphas, level)
-                });
-                (Filter::FlateDecode, encoded, mask)
-            };
-
-            let (filter, encoded, mask) = match format {
-                ImageFormat::Jpeg => {
-                    log::debug!("image {} format: jpeg , color {:?}", path.display(), dynamic.color());
-                    match dynamic.color() {
-                        ColorType::L8 => handle_png_l8(),
-                        ColorType::Rgb8 => (Filter::DctDecode, data, None),
-                        _ => {
-                            log::error!("unsupported color type: {:?}", dynamic.color());
-                            continue;
-                        }
-                    }
-                }
-                ImageFormat::Png => {
-                    log::debug!("image {} format: png , color {:?}", path.display(), dynamic.color());
-                    handle_png_l8()
-                }
-                _ => {
-                    log::error!("unsupported image format");
-                    continue;
-                }
-            };
-
-            // 页面大小
-            let rect = Rect::new(0.0, 0.0, dynamic.width() as f32, dynamic.height() as f32);
-
-            page.media_box(rect);
-            page.parent(page_tree_id);
-            page.contents(content_id);
-            page.resources().x_objects().pair(image_name, image_id);
-            page.finish();
-
-            // 写入图片到 PDF 文件
-            let mut image = pdf.image_xobject(image_id, &encoded);
-            image.filter(filter);
-            image.width(dynamic.width() as i32);
-            image.height(dynamic.height() as i32);
-            image.color_space().device_rgb();
-            image.bits_per_component(8);
-            if mask.is_some() {
-                image.s_mask(s_mask_id);
-            }
-            image.finish();
-
-            // 追加透明通道
-            if let Some(encoded) = &mask {
-                let mut s_mask = pdf.image_xobject(s_mask_id, encoded);
-                s_mask.filter(filter);
-                s_mask.width(dynamic.width() as i32);
-                s_mask.height(dynamic.height() as i32);
-                s_mask.color_space().device_gray();
-                s_mask.bits_per_component(8);
-            }
-
-            log::debug!(
-                "image {} size: {}x{}",
-                path.display(),
-                dynamic.width(),
-                dynamic.height()
+            convert_image_into_pdf(
+                &mut pdf,
+                path,
+                page_tree_id,
+                page_id,
+                image_id,
+                content_id,
+                s_mask_id,
+                file_name,
             );
-
-            let w = dynamic.width() as f32;
-            let h = dynamic.height() as f32;
-
-            let x = rect.x2 - w;
-            let y = rect.y2 - h;
-
-            let mut content = Content::new();
-            content.save_state();
-            content.transform([w, 0.0, 0.0, h, x, y]);
-            content.x_object(image_name);
-            content.restore_state();
-            pdf.stream(content_id, &content.finish());
         }
     }
     // 保存PDF文件
@@ -382,6 +299,122 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: PdfConfig) 
         Ok(_) => log::info!("save pdf {:?}", name),
         Err(e) => log::error!("{:?}", e),
     }
+}
+
+///
+/// 将图片转换为 PDF
+///
+/// # Arguments
+/// * `pdf` - PDF 文件
+/// * `path` - 图片路径
+/// * `page_tree_id` - 页面树 ID
+/// * `page_id` - 页面 ID
+/// * `image_id` - 图片 ID
+/// * `content_id` - 内容 ID
+/// * `s_mask_id` - s_mask ID
+/// * `file_name` - 文件名
+///
+fn convert_image_into_pdf(
+    pdf: &mut Pdf,
+    path: &PathBuf,
+    page_tree_id: Ref,
+    page_id: Ref,
+    image_id: Ref,
+    content_id: Ref,
+    s_mask_id: Ref,
+    file_name: &str,
+) {
+    let image_name = Name(file_name.as_bytes());
+    let mut page = pdf.page(page_id);
+
+    // 解析图片
+    let data = std::fs::read(path).unwrap();
+    let format = image::guess_format(&data).unwrap();
+    let dynamic = image::load_from_memory(&data).unwrap();
+
+    // 处理 png 文件或者 l8 色域图片
+    let handle_png_l8 = || {
+        let level = CompressionLevel::DefaultLevel as u8;
+        let encoded = compress_to_vec_zlib(dynamic.to_rgb8().as_raw(), level);
+        let mask = dynamic.color().has_alpha().then(|| {
+            let alphas: Vec<_> = dynamic.pixels().map(|p| (p.2).0[3]).collect();
+            compress_to_vec_zlib(&alphas, level)
+        });
+        (Filter::FlateDecode, encoded, mask)
+    };
+
+    let (filter, encoded, mask) = match format {
+        ImageFormat::Jpeg => {
+            log::debug!("image {} format: jpeg , color {:?}", path.display(), dynamic.color());
+            match dynamic.color() {
+                ColorType::L8 => handle_png_l8(),
+                ColorType::Rgb8 => (Filter::DctDecode, data, None),
+                _ => {
+                    log::error!("unsupported color type: {:?}", dynamic.color());
+                    return;
+                }
+            }
+        }
+        ImageFormat::Png => {
+            log::debug!("image {} format: png , color {:?}", path.display(), dynamic.color());
+            handle_png_l8()
+        }
+        _ => {
+            log::error!("unsupported image format");
+            return;
+        }
+    };
+
+    // 页面大小
+    let rect = Rect::new(0.0, 0.0, dynamic.width() as f32, dynamic.height() as f32);
+
+    page.media_box(rect);
+    page.parent(page_tree_id);
+    page.contents(content_id);
+    page.resources().x_objects().pair(image_name, image_id);
+    page.finish();
+
+    // 写入图片到 PDF 文件
+    let mut image = pdf.image_xobject(image_id, &encoded);
+    image.filter(filter);
+    image.width(dynamic.width() as i32);
+    image.height(dynamic.height() as i32);
+    image.color_space().device_rgb();
+    image.bits_per_component(8);
+    if mask.is_some() {
+        image.s_mask(s_mask_id);
+    }
+    image.finish();
+
+    // 追加透明通道
+    if let Some(encoded) = &mask {
+        let mut s_mask = pdf.image_xobject(s_mask_id, encoded);
+        s_mask.filter(filter);
+        s_mask.width(dynamic.width() as i32);
+        s_mask.height(dynamic.height() as i32);
+        s_mask.color_space().device_gray();
+        s_mask.bits_per_component(8);
+    }
+
+    log::debug!(
+        "image {} size: {}x{}",
+        path.display(),
+        dynamic.width(),
+        dynamic.height()
+    );
+
+    let w = dynamic.width() as f32;
+    let h = dynamic.height() as f32;
+
+    let x = rect.x2 - w;
+    let y = rect.y2 - h;
+
+    let mut content = Content::new();
+    content.save_state();
+    content.transform([w, 0.0, 0.0, h, x, y]);
+    content.x_object(image_name);
+    content.restore_state();
+    pdf.stream(content_id, &content.finish());
 }
 
 /// 将 hentai 打包为 zip
