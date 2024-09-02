@@ -184,7 +184,17 @@ async fn download(name: &str, config: Config, interaction: &Option<bool>) {
         }
         log::info!("download start");
         // 当任务全部执行完毕
-        while let Some(_) = set.join_next().await {}
+        while let Some(res) = set.join_next().await {
+            // 下载任务发生异常时进行提示
+            match res.unwrap() {
+                Ok((time, filename)) => {
+                    log::debug!("use {} time to download {}", time, filename);
+                }
+                Err(error) => {
+                    log::error!("download failed: {}", error);
+                }
+            }
+        }
         log::info!("download finished");
     }
     if config.compress.enable {

@@ -43,19 +43,40 @@ pub async fn navigate(url: &str) -> EResult<String> {
 /// * `hentai_store` - HentaiStore 实例
 /// * `max_count` - 最大重试次数
 /// * `replace` - 是否替换已有文件
-pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: bool) -> EResult<()> {
+pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: bool) -> EResult<(u8, String)> {
     log::debug!("Downloading image from {}", hentai_store.url);
-    let mut retry_count = 0u8;
-    while retry_count < max_count {
+    let mut retry_count = 1u8;
+
+    let message = format!("{:?} Too many retries", hentai_store.path.file_name());
+    let mut error: CustomError = CustomError::RequestError { message };
+    while retry_count <= max_count {
         // 发送GET请求获取图片
-        let response = reqwest::get(hentai_store.url.as_str()).await?;
+        let response = match reqwest::get(hentai_store.url.as_str()).await {
+            Ok(res) => res,
+            Err(e) => {
+                // 请求错误，重试下载
+                error = e.into();
+                retry_count += 1;
+                log::debug!("Retrying download image from {}", hentai_store.url);
+                continue;
+            }
+        };
         // 检查响应状态码是否为200（OK）
         if response.status().is_success() {
             // 获取响应体
-            let bytes = response.bytes().await?;
+            let bytes = match response.bytes().await {
+                Ok(bytes) => bytes,
+                Err(e) => {
+                    // 解码错误，重试下载
+                    error = e.into();
+                    retry_count += 1;
+                    log::debug!("Retrying download image from {}", hentai_store.url);
+                    continue;
+                }
+            };
             // 判断文件是否存在
             if hentai_store.path.exists() {
-                let message = format!("{:?} 文件已存在", hentai_store.path.file_name());
+                let message = format!("{:?} file already exists", hentai_store.path.file_name());
                 log::warn!("{}", message);
                 // 如果不允许替换已有文件
                 if !replace {
@@ -67,12 +88,11 @@ pub async fn download_image(hentai_store: HentaiStore, max_count: u8, replace: b
                 // 将图片数据写入文件
                 file.write_all(&bytes)?;
             }
-            return Ok(());
+            return Ok((retry_count, format!("{:?}", hentai_store.path.file_name().unwrap())));
         } else {
             retry_count += 1;
             log::debug!("Retrying download image from {}", hentai_store.url);
         }
     }
-    let message = format!("{:?} Too many retries", hentai_store.path.file_name());
-    Err(CustomError::RequestError { message })
+    Err(error)
 }
