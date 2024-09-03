@@ -26,7 +26,7 @@ async fn main() {
     let args = App::parse();
     let config: Config = match load_config(CONFIG_FILE_PATH) {
         Ok(config) => config,
-        Err(e) => panic!("配置文件格式异常: {}", e),
+        Err(e) => panic!("profile format error: {}", e),
     };
     args.cmd.run(config, CONFIG_FILE_PATH).await
 }

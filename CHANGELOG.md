@@ -1,3 +1,7 @@
+# Version 0.3.1 (2024-09-03)
+
+add info log for image that will be downloaded count
+
 # Version 0.3.0 (2024-09-02)
 
 fix download retry logic

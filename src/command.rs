@@ -175,6 +175,7 @@ async fn download(name: &str, config: Config, interaction: &Option<bool>) {
         }
         // 并发任务集合
         let mut set = JoinSet::new();
+        log::info!("fetch {} pages", hentai_detail.res_list.len());
         for ele in hentai_detail.res_list {
             let hentai_store = HentaiStore {
                 url: format!("{}/{}/{}", base_url, &hentai_detail.gallery, ele),
@@ -257,7 +258,7 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: PdfConfig) 
                 log::warn!("file {} is not a image, skip", path.display());
             }
         } else {
-            log::error!("文件拓展名不合法: {:?}", path);
+            log::error!("invalid file extension name: {:?}", path);
         }
     }
     // 设置 pdf 参数
@@ -271,13 +272,13 @@ fn convert(path: &str, name: &str, dir: &Option<String>, pdf_config: PdfConfig) 
             .unwrap()
             .to_string_lossy()
             .parse()
-            .expect("请用阿拉伯数字按顺序命名图片");
+            .expect("please use number to name image");
         let b: u16 = b
             .file_stem()
             .unwrap()
             .to_string_lossy()
             .parse()
-            .expect("请用阿拉伯数字按顺序命名图片");
+            .expect("please use number to name image");
         a.cmp(&b)
     });
 
