@@ -7,10 +7,10 @@ use walkdir::{DirEntry, WalkDir};
 use zip::AesMode;
 use zip::{result::ZipError, write::SimpleFileOptions};
 
-use std::fs;
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::{env, fs};
 use std::{fs::File, io::Write};
 use tokio::task::JoinSet;
 
@@ -34,7 +34,11 @@ pub struct App {
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     /// generate config file
-    Generate,
+    Generate {
+        /// generate global config file
+        #[arg(short)]
+        global: bool,
+    },
     /// download hentai by name
     Download {
         /// hentai name
@@ -76,7 +80,7 @@ pub enum Commands {
 impl Commands {
     pub async fn run(&self, config: Config, file: &str) {
         match self {
-            Commands::Generate => generate(config, file),
+            Commands::Generate { global } => generate(config, file, *global),
             Commands::Download { name, interaction } => download(name, config, interaction).await,
             Commands::Convert { path, name, dir } => convert(path, name, dir, config.pdf),
             Commands::Compress {
@@ -95,11 +99,20 @@ impl Commands {
 ///
 /// * `config` - 配置文件
 /// * `file` - 配置文件路径
-fn generate(config: Config, file: &str) {
+/// * `global` - 是否为全局配置文件
+fn generate(config: Config, file: &str, global: bool) {
     let config_str = serde_yaml::to_string(&config).unwrap();
-    let mut file = File::create(file).unwrap();
-    file.write_all(config_str.as_bytes()).unwrap();
-    log::info!("generate config file success");
+    if global {
+        let exe_path = env::current_exe().unwrap();
+        let config_path = exe_path.parent().unwrap().join(file);
+        let mut file = File::create(config_path).unwrap();
+        file.write_all(config_str.as_bytes()).unwrap();
+        log::info!("generate global config file success");
+    } else {
+        let mut file = File::create(file).unwrap();
+        file.write_all(config_str.as_bytes()).unwrap();
+        log::info!("generate config file success");
+    }
 }
 
 ///

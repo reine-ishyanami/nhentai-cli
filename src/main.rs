@@ -5,12 +5,7 @@ mod model;
 mod parse;
 mod request;
 
-use std::{
-    fs::File,
-    io::{Read, Write},
-    path::Path,
-    thread,
-};
+use std::{env, fs::File, io::Read, path::Path, thread};
 
 use crate::command::App;
 use crate::config::Config;
@@ -18,17 +13,18 @@ use crate::error::EResult;
 use chrono::Local;
 use clap::Parser;
 use env_logger::Builder;
+use std::io::Write;
 
-const CONFIG_FILE_PATH: &str = "config.yaml";
+const CONFIG_FILE_PATH: &str = "nhentai.yaml";
 
 #[tokio::main]
-async fn main() {
+async fn main() -> EResult<()> {
     let args = App::parse();
     let config: Config = match load_config(CONFIG_FILE_PATH) {
         Ok(config) => config,
-        Err(e) => panic!("profile format error: {}", e),
+        Err(e) => panic!("profile format error: {}, please regenerate the profile file", e),
     };
-    args.cmd.run(config, CONFIG_FILE_PATH).await
+    Ok(args.cmd.run(config, CONFIG_FILE_PATH).await)
 }
 
 /// 读取配置文件
@@ -46,8 +42,21 @@ async fn main() {
 /// 可能发生的异常
 ///
 fn load_config(file_name: &str) -> EResult<Config> {
-    let mut config: Config = Config::default();
+    // 读取程序目录配置文件
+    let exe_path = env::current_exe()?;
+    let config_path = exe_path.parent().unwrap().join(CONFIG_FILE_PATH);
+    // 读取程序默认配置(3)
+    let mut config: Config = Config::default(); // (3)
+
+    // 读取当前目录下配置文件(1)
     if let Ok(mut file) = File::open(Path::new(file_name)) {
+        // (1)
+        // 读取文件内容到字符串
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        config = serde_yaml::from_str(&contents)?;
+    } else if let Ok(mut file) = File::open(Path::new(&config_path)) {
+        // (2)
         // 读取文件内容到字符串
         let mut contents = String::new();
         file.read_to_string(&mut contents)?;

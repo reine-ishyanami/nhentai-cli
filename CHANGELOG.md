@@ -1,3 +1,13 @@
+# Version 0.3.2 (2024-09-04)
+
+generate global profile for use 
+
+   ```bash
+   nhentai-rs generate -g
+   ```
+
+you can find global profile in executable directory, it's name is `nhentai.yaml`
+
 # Version 0.3.1 (2024-09-03)
 
 add info log for image that will be downloaded count
