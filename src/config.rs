@@ -50,7 +50,7 @@ pub struct LogLevelMap(BTreeMap<String, LogLevel>);
 impl Default for LogLevelMap {
     fn default() -> Self {
         let mut map = BTreeMap::new();
-        map.insert("nhentai_rs".to_owned(), LogLevel::Info);
+        map.insert("nhentai".to_owned(), LogLevel::Info);
         Self(map)
     }
 }

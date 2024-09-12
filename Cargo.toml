@@ -1,11 +1,10 @@
 [package]
-name = "nhentai-rs"
-version = "0.3.2"
+name = "nhentai"
+version = "0.3.3"
 edition = "2021"
 description = "download hentai images from nhentai.net"
 license = "AGPL"
-repository = "https://github.com/reine-ishyanami/nhentai-rs"
-
+repository = "https://github.com/reine-ishyanami/nhentai-cli"
 
 [dependencies]
 chrono = "0.4.38"  # 时间处理

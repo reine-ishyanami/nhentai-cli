@@ -1,3 +1,7 @@
+# Version 0.3.3 (2024-09-12)
+
+rename
+
 # Version 0.3.2 (2024-09-04)
 
 generate global profile for use 
