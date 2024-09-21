@@ -7,7 +7,9 @@ use serde::{Deserialize, Deserializer, Serialize};
 pub struct Config {
     pub log: LogConfig,
     pub language: Language,
+    #[serde(rename = "retry-count")]
     pub retry_count: u8,
+    #[serde(rename = "root-dir")]
     pub root_dir: String,
     pub replace: bool,
     pub interaction: bool,
@@ -62,7 +64,7 @@ impl ToString for LogLevelMap {
             format!("{}", log)
         } else {
             for (key, value) in &self.0 {
-                pairs.push(format!("{}={}", key, value));
+                pairs.push(format!("{}={}", key.replace("-", "_"), value));
             }
             format!("{}", pairs.join(","))
         }
@@ -115,6 +117,8 @@ pub struct CompressConfig {
     pub enable: bool,
     pub password: String,
     pub dir: String,
+    #[serde(rename = "all-success")]
+    pub all_success: bool,
 }
 
 impl Default for CompressConfig {
@@ -123,6 +127,7 @@ impl Default for CompressConfig {
             enable: false,
             password: "".to_owned(),
             dir: "cpr".to_owned(),
+            all_success: true,
         }
     }
 }
@@ -132,6 +137,8 @@ impl Default for CompressConfig {
 pub struct PdfConfig {
     pub enable: bool,
     pub dir: String,
+    #[serde(rename = "all-success")]
+    pub all_success: bool,
 }
 
 impl Default for PdfConfig {
@@ -139,6 +146,7 @@ impl Default for PdfConfig {
         Self {
             enable: false,
             dir: "pdf".to_owned(),
+            all_success: true,
         }
     }
 }

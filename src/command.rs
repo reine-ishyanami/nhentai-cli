@@ -180,6 +180,8 @@ async fn download(name: &str, config: Config, interaction: &Option<bool>) {
     } else {
         config.interaction
     };
+    // 是否所有文件下载成功
+    let mut all_success = true;
     if let Ok(hentai_detail) = search(name, &config.language, interaction).await {
         let path = format!("{}/{}", config.root_dir, name);
         // 创建目录
@@ -205,16 +207,17 @@ async fn download(name: &str, config: Config, interaction: &Option<bool>) {
                     log::debug!("use {} time to download {}", time, filename);
                 }
                 Err(error) => {
+                    all_success = false;
                     log::error!("download failed: {}", error);
                 }
             }
         }
         log::info!("download finished");
     }
-    if config.compress.enable {
+    if config.compress.enable && (config.compress.all_success && all_success || !config.compress.all_success) {
         compress(name, name, &None, &None, config.compress);
     }
-    if config.pdf.enable {
+    if config.pdf.enable && (config.pdf.all_success && all_success || !config.pdf.all_success)  {
         convert(name, name, &None, config.pdf);
     }
 }
