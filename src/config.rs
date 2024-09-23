@@ -23,7 +23,7 @@ impl Default for Config {
             log: LogConfig::default(),
             language: Language::default(),
             retry_count: 5u8,
-            root_dir: ".".to_owned(),
+            root_dir: ".".into(),
             replace: false,
             interaction: false,
             compress: CompressConfig::default(),
@@ -52,7 +52,7 @@ pub struct LogLevelMap(BTreeMap<String, LogLevel>);
 impl Default for LogLevelMap {
     fn default() -> Self {
         let mut map = BTreeMap::new();
-        map.insert("nhentai".to_owned(), LogLevel::Info);
+        map.insert("nhentai".into(), LogLevel::Info);
         Self(map)
     }
 }
@@ -125,8 +125,8 @@ impl Default for CompressConfig {
     fn default() -> Self {
         Self {
             enable: false,
-            password: "".to_owned(),
-            dir: "cpr".to_owned(),
+            password: "".into(),
+            dir: "cpr".into(),
             all_success: true,
         }
     }
@@ -145,7 +145,7 @@ impl Default for PdfConfig {
     fn default() -> Self {
         Self {
             enable: false,
-            dir: "pdf".to_owned(),
+            dir: "pdf".into(),
             all_success: true,
         }
     }

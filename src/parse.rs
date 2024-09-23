@@ -28,7 +28,7 @@ pub async fn get_hentai_list(html: &str) -> Vec<HentaiHref> {
             .attr("data-tags")
             .unwrap()
             .split(" ")
-            .map(|s| s.to_owned())
+            .map(|s| s.into())
             .collect();
         // 遍历向量中的data_tags
         for data_tag in data_tags.iter() {
@@ -93,7 +93,7 @@ pub async fn get_hentai_detail(html: &str) -> HentaiDetail {
         }
     }
     HentaiDetail {
-        gallery: gallery.to_owned(),
+        gallery: gallery.into(),
         res_list: res_list,
     }
 }

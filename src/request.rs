@@ -29,7 +29,7 @@ pub async fn navigate(url: &str) -> EResult<String> {
         Ok(body)
     } else {
         // 如果响应状态码不是成功，返回错误
-        let message = "Request Page Content failed".to_owned();
+        let message = "Request Page Content failed".into();
         log::error!("{}", message);
         Err(CustomError::RequestError { message })
     }

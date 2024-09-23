@@ -217,7 +217,7 @@ async fn download(name: &str, config: Config, interaction: &Option<bool>) {
     if config.compress.enable && (config.compress.all_success && all_success || !config.compress.all_success) {
         compress(name, name, &None, &None, config.compress);
     }
-    if config.pdf.enable && (config.pdf.all_success && all_success || !config.pdf.all_success)  {
+    if config.pdf.enable && (config.pdf.all_success && all_success || !config.pdf.all_success) {
         convert(name, name, &None, config.pdf);
     }
 }
